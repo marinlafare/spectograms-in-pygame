@@ -1,5 +1,5 @@
 import pygame
-import numpy
+import numpy as np
 import threading
 import pyaudio
 import scipy
@@ -8,46 +8,40 @@ import scipy.io.wavfile
 import sys
 import wave
 
-rate = 12000  # try 5000 for HD data, 48000 for realtime
-soundcard = 1
+FORMAT = pyaudio.paInt16
+SAMPLE_RATE = 44100  # try 5000 for HD data, 48000 for realtime
+DEVICE = 1
 windowWidth = 500
 fftsize = 512
-currentCol = 0
-scooter = []
-overlap = 5  # 1 for raw, realtime - 8 or 16 for high-definition
 
 def graphFFT(pcm):
-    global currentCol, data
+    global data
     ffty = scipy.fftpack.fft(pcm)  # convert WAV to FFT
     ffty = abs(ffty[0:int(len(ffty)/2)])/500  # FFT is mirror-imaged
     # ffty=(scipy.log(ffty))*30-50 # if you want uniform data
-    print("MIN:t%stMAX:t%s" % (min(ffty), max(ffty)))
+    #print("MIN:t%stMAX:t%s" % (min(ffty), max(ffty)))
     for i in range(len(ffty)):
         if ffty[i] < 0:
             ffty[i] = 0
         if ffty[i] > 255:
             ffty[i] = 255
-    scooter.append(ffty)
-    if len(scooter) < 6:
-        return
-    scooter.pop(0)
-    ffty = (scooter[0]+scooter[1]*2+scooter[2]*3+scooter[3]*2+scooter[4])/9
+    
     data = numpy.roll(data, -1, 0)
     data[-1] = ffty[::-1]
-    currentCol += 1
-    if currentCol == windowWidth:
-        currentCol = 0
-
-
+    
 def record():
     p = pyaudio.PyAudio()
-    inStream = p.open(format=pyaudio.paInt16, channels=1, rate=rate,
-                      input_device_index=soundcard, input=True)
+    inStream = p.open(format = FORMAT,
+                      channels = 1,
+                      rate=SAMPLE_RATE,
+                      input_device_index=DEVICE,
+                      input=True)
+
     linear = [0]*fftsize
     while True:
-        linear = linear[int(fftsize/overlap):]
+        linear = linear[int(fftsize):]
         pcm = numpy.frombuffer(inStream.read(
-            int(fftsize/overlap)), dtype=numpy.int16)
+            int(fftsize)), dtype=numpy.int16)
         linear = numpy.append(linear, pcm)
         graphFFT(linear)
 
