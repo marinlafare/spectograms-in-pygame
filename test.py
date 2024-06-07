@@ -13,6 +13,7 @@ SAMPLE_RATE = 44100
 DEVICE = 1
 windowWidth = 500
 FFTSIZE = 512
+mic_recording = np.array([0]*FFTSIZE)
 
 def graphFFT(pcm):
     global data
@@ -29,6 +30,7 @@ def graphFFT(pcm):
     data[-1] = ffty[::-1]
     
 def record():
+    global mic_recording
     p = pyaudio.PyAudio()
     inStream = p.open(format = FORMAT,
                       channels = 1,
@@ -40,7 +42,8 @@ def record():
         pcm = np.frombuffer(
                             inStream.read(FFTSIZE),
                             dtype=np.int16)
-        graphFFT(pcm)
+        mic_recording = np.append(mic_recording,pcm)
+        
 
 
 pal = [(max((x-128)*2, 0), x, min(x*2, 255)) for x in range(256)]
@@ -62,6 +65,7 @@ while 1:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+    graphFFT(mic_recording[-FFTSIZE:])
     pygame.surfarray.blit_array(world, data)  # place data in window
     screen.blit(world, (0, 0))
     pygame.display.flip()  # RENDER WINDOW
